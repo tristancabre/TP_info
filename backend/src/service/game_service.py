@@ -1,6 +1,6 @@
 import os
-import secrets
 
+from business_object.game_mode.game_mode_factory import GameModeFactory
 from fastapi import HTTPException
 
 from dao.player_dao import PlayerDao
@@ -11,7 +11,7 @@ class GameService:
     """Service that manages games."""
 
     @log
-    def play(self, id_player: int, id_opponent: int, choice="heads"):
+    def play(self, id_player: int, id_opponent: int, game_mode: str, **kwargs):
         """Executes a single round of a coin-flip game between two players.
         Args:
             id_player (int): The unique identifier of the first player.
@@ -32,22 +32,11 @@ class GameService:
         if not p1 or not p2:
             raise HTTPException(status_code=404, detail="Player not found")
 
-        result = secrets.choice(["heads", "tails"])
-        winner = p1 if result == choice else p2
+        mode = GameModeFactory.get_mode(game_mode)
 
-        self.update_player_ratings(p1, p2, winner)
+        game = mode.play(p1, p2, **kwargs)
 
-        PlayerDao().update(p1)
-        PlayerDao().update(p2)
-
-        return {
-            "player1": p1.username,
-            "player2": p2.username,
-            "description": result,
-            "winner": winner.username,
-            "new_elo1": p1.elo,
-            "new_elo2": p2.elo,
-        }
+        return game
 
     @classmethod
     def calculate_expected_score(cls, elo_a, elo_b) -> float:
